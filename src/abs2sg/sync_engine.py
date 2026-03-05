@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .abs_client import AbsClient
 from .config import Config
-from .matcher import pick_best_candidate
+from .matcher import pick_best_candidate, rank_candidates
 from .models import AbsBook, PlannedAction, ReadingStatus
 from .state_store import StateStore
 from .storygraph_client import StoryGraphClient, StoryGraphConfig
@@ -124,8 +124,20 @@ class SyncEngine:
                 book,
                 candidates,
                 threshold=self._config.match_threshold,
+                tie_delta=self._config.match_tie_delta,
+                min_quality=self._config.match_min_quality,
             )
             if best is None:
+                ranked = rank_candidates(book, candidates)
+                top_ranked = [
+                    {
+                        "url": item.candidate.url,
+                        "title": item.candidate.title,
+                        "similarity": round(item.similarity, 4),
+                        "quality": round(item.quality, 4),
+                    }
+                    for item in ranked[:5]
+                ]
                 stats.failed += 1
                 self._state.append_error(
                     abs_id=book.abs_id,
@@ -135,7 +147,10 @@ class SyncEngine:
                         "authors": book.authors,
                         "candidate_count": len(candidates),
                         "threshold": self._config.match_threshold,
+                        "tie_delta": self._config.match_tie_delta,
+                        "min_quality": self._config.match_min_quality,
                         "score": score,
+                        "top_ranked": top_ranked,
                     },
                 )
                 return

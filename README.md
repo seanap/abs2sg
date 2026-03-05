@@ -39,7 +39,7 @@ docker compose up --build
 - `SG_STORAGE_STATE_B64` (optional base64 Playwright storage_state JSON)
 - `SG_COOKIE_HEADER` (optional raw Cookie header copied from browser request)
 - `SG_TRY_EXISTING_SESSION_FIRST` (skip direct login when valid session already exists)
-- `MATCH_THRESHOLD`
+- `MATCH_THRESHOLD`, `MATCH_TIE_DELTA`, `MATCH_MIN_QUALITY`
 - `SYNC_INTERVAL_MINUTES` (`0` = run once, `>0` = loop)
 - `ERROR_RETRY_MINUTES` (retry delay after failed run in loop mode)
 
@@ -74,6 +74,7 @@ The `docker-publish.yml` workflow builds and pushes `${DOCKERHUB_USERNAME}/abs2s
 - StoryGraph can present Cloudflare bot checks. The app will wait `SG_CHALLENGE_WAIT_SECONDS` and then log explicit challenge errors plus debug artifacts.
 - Matching is heuristic (title + author similarity). Ambiguous books are logged for review.
 - Low-quality StoryGraph entries marked as `user-added` / `missing page info` are skipped during matching and blocked again at update time as a safety net.
+- When multiple candidates are close in similarity, richer metadata entries (pages/duration/editions) are preferred over sparse editions.
 - `in_progress` ABS books are intentionally skipped in v1.
 
 ## Session Import (Cloudflare Workaround)

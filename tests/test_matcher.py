@@ -1,7 +1,9 @@
 from abs2sg.matcher import (
+    candidate_quality_score,
     is_low_quality_candidate,
     normalize_text,
     pick_best_candidate,
+    rank_candidates,
     score_candidate,
 )
 from abs2sg.models import AbsBook, ReadingStatus, StoryGraphCandidate
@@ -89,3 +91,80 @@ def test_pick_best_candidate_skips_low_quality_results() -> None:
     best, _ = pick_best_candidate(book, candidates, threshold=0.7)
     assert best is not None
     assert best.url == "good"
+
+
+def test_candidate_quality_score_prefers_richer_metadata() -> None:
+    rich = StoryGraphCandidate(
+        url="rich",
+        title="Example",
+        authors=["Author"],
+        snippet="Example\nAuthor\n384 pages • digital • 2020 • 4 editions",
+    )
+    poor = StoryGraphCandidate(
+        url="poor",
+        title="Example",
+        authors=["Author"],
+        snippet="Example\nAuthor\nmissing page info • digital • 1 edition",
+    )
+    assert candidate_quality_score(rich) > candidate_quality_score(poor)
+
+
+def test_pick_best_candidate_prefers_better_quality_on_near_tie() -> None:
+    book = AbsBook(
+        abs_id="4",
+        title="Example Book",
+        authors=["Some Author"],
+        status=ReadingStatus.UNREAD,
+        raw={},
+    )
+    candidates = [
+        StoryGraphCandidate(
+            url="thin",
+            title="Example Book",
+            authors=["Some Author"],
+            snippet="Example Book\nSome Author\n1 edition • digital",
+        ),
+        StoryGraphCandidate(
+            url="rich",
+            title="Example Book",
+            authors=["Some Author"],
+            snippet="Example Book\nSome Author\n412 pages • digital • 5 editions",
+        ),
+    ]
+    best, score = pick_best_candidate(
+        book,
+        candidates,
+        threshold=0.7,
+        tie_delta=0.05,
+        min_quality=0.0,
+    )
+    assert best is not None
+    assert best.url == "rich"
+    assert score >= 0.7
+
+
+def test_rank_candidates_orders_by_similarity_then_quality() -> None:
+    book = AbsBook(
+        abs_id="5",
+        title="Focused Work",
+        authors=["Alex Writer"],
+        status=ReadingStatus.UNREAD,
+        raw={},
+    )
+    candidates = [
+        StoryGraphCandidate(
+            url="a",
+            title="Focused Work",
+            authors=["Alex Writer"],
+            snippet="Focused Work\nAlex Writer\n1 edition • digital",
+        ),
+        StoryGraphCandidate(
+            url="b",
+            title="Focused Work",
+            authors=["Alex Writer"],
+            snippet="Focused Work\nAlex Writer\n320 pages • 3 editions",
+        ),
+    ]
+    ranked = rank_candidates(book, candidates)
+    assert ranked
+    assert ranked[0].candidate.url == "b"

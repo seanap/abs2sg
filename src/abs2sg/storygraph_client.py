@@ -171,7 +171,7 @@ class StoryGraphClient:
                 if full_url in seen:
                     continue
                 seen.add(full_url)
-                text = (anchor.inner_text(timeout=2_000) or "").strip()
+                text = self._extract_search_result_text(anchor)
                 if not text:
                     continue
                 candidate_title = text.split("\n")[0].strip()
@@ -604,6 +604,43 @@ class StoryGraphClient:
             if token.strip()
         ]
         return authors
+
+    def _extract_search_result_text(self, anchor) -> str:
+        fallback = ""
+        try:
+            fallback = (anchor.inner_text(timeout=2_000) or "").strip()
+        except Exception:  # noqa: BLE001
+            fallback = ""
+
+        try:
+            enriched = anchor.evaluate(
+                """(el) => {
+                    const interesting = /(missing page info|user-added|pages?|editions?)/i;
+                    const hasDuration = /\\d+\\s*h/i;
+                    let node = el;
+                    let best = (el.innerText || "").trim();
+                    for (let i = 0; i < 7 && node && node.parentElement; i += 1) {
+                        node = node.parentElement;
+                        const text = (node.innerText || "").trim();
+                        if (!text) continue;
+                        if (text.length > best.length && text.length <= 1200) {
+                            best = text;
+                        }
+                        if (interesting.test(text) || hasDuration.test(text)) {
+                            return text;
+                        }
+                    }
+                    return best;
+                }"""
+            )
+            if isinstance(enriched, str):
+                compact = enriched.strip()
+                if compact:
+                    return compact
+        except Exception:  # noqa: BLE001
+            pass
+
+        return fallback
 
     def _is_low_quality_book_page(self) -> bool:
         markers = (

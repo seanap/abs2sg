@@ -50,6 +50,8 @@ class Config:
     sg_cookie_header: str
     sg_try_existing_session_first: bool
     match_threshold: float
+    match_tie_delta: float
+    match_min_quality: float
     sync_interval_minutes: int
     error_retry_minutes: int
     sg_search_url_template: str
@@ -113,6 +115,8 @@ class Config:
             sg_cookie_header=os.getenv("SG_COOKIE_HEADER", "").strip(),
             sg_try_existing_session_first=_env_bool("SG_TRY_EXISTING_SESSION_FIRST", True),
             match_threshold=_env_float("MATCH_THRESHOLD", 0.70),
+            match_tie_delta=_env_float("MATCH_TIE_DELTA", 0.04),
+            match_min_quality=_env_float("MATCH_MIN_QUALITY", 0.0),
             sync_interval_minutes=_env_int("SYNC_INTERVAL_MINUTES", 0),
             error_retry_minutes=_env_int("ERROR_RETRY_MINUTES", 15),
             sg_search_url_template=os.getenv(

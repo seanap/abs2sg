@@ -71,10 +71,6 @@ def candidate_quality_score(candidate: StoryGraphCandidate) -> float:
     if "digital" in snippet and "pages" not in snippet:
         score -= 0.05
 
-    compact = re.sub(r"\s+", " ", snippet).strip()
-    if len(compact) < 20:
-        score -= 0.10
-
     return max(-1.0, min(1.0, score))
 
 

@@ -21,12 +21,19 @@ def run() -> int:
     engine = SyncEngine(config)
     interval_minutes = config.sync_interval_minutes
     if interval_minutes <= 0:
-        engine.run_once()
-        return 0
+        try:
+            engine.run_once()
+            return 0
+        except Exception:  # noqa: BLE001
+            LOGGER.exception("Sync run failed")
+            return 1
 
     LOGGER.info("Starting loop mode: every %s minute(s)", interval_minutes)
     while True:
-        engine.run_once()
+        try:
+            engine.run_once()
+        except Exception:  # noqa: BLE001
+            LOGGER.exception("Sync run failed")
         sleep_seconds = interval_minutes * 60
         LOGGER.info("Sleeping for %s seconds", sleep_seconds)
         time.sleep(sleep_seconds)
@@ -34,4 +41,3 @@ def run() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(run())
-

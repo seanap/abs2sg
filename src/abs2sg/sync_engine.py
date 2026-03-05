@@ -56,10 +56,14 @@ class SyncEngine:
             password=self._config.sg_password,
             headless=self._config.headless,
             search_url_template=self._config.sg_search_url_template,
+            login_email_selectors=self._config.sg_login_email_selectors,
+            login_password_selectors=self._config.sg_login_password_selectors,
+            login_submit_selectors=self._config.sg_login_submit_selectors,
             to_read_selector=self._config.sg_to_read_selector,
             recently_read_selector=self._config.sg_recently_read_selector,
             request_delay_ms=self._config.request_delay_ms,
             request_jitter_ms=self._config.request_jitter_ms,
+            data_dir=str(self._config.data_dir),
         )
 
         if self._config.dry_run:

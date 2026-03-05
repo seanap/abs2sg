@@ -45,6 +45,9 @@ class Config:
     sync_interval_minutes: int
     sg_search_url_template: str
     sg_login_path: str
+    sg_login_email_selectors: str
+    sg_login_password_selectors: str
+    sg_login_submit_selectors: str
     sg_to_read_selector: str
     sg_recently_read_selector: str
 
@@ -97,6 +100,27 @@ class Config:
                 "https://app.thestorygraph.com/browse?search_term={query}",
             ),
             sg_login_path=os.getenv("SG_LOGIN_PATH", "/users/sign_in"),
+            sg_login_email_selectors=os.getenv(
+                "SG_LOGIN_EMAIL_SELECTORS",
+                (
+                    "input[name='user[email]'], input[type='email'], input[name='email'], "
+                    "input[name*='email' i], input[id*='email' i], input[autocomplete='email']"
+                ),
+            ),
+            sg_login_password_selectors=os.getenv(
+                "SG_LOGIN_PASSWORD_SELECTORS",
+                (
+                    "input[name='user[password]'], input[type='password'], "
+                    "input[name='password'], input[name*='password' i]"
+                ),
+            ),
+            sg_login_submit_selectors=os.getenv(
+                "SG_LOGIN_SUBMIT_SELECTORS",
+                (
+                    "button:has-text('Log in'), button:has-text('Sign in'), "
+                    "button[type='submit'], input[type='submit']"
+                ),
+            ),
             sg_to_read_selector=os.getenv(
                 "SG_TO_READ_SELECTOR",
                 "button:has-text('To-Read'), button:has-text('to-read'), a:has-text('To-Read')",

@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 import random
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import quote_plus
 
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
@@ -20,10 +22,14 @@ class StoryGraphConfig:
     password: str
     headless: bool
     search_url_template: str
+    login_email_selectors: str
+    login_password_selectors: str
+    login_submit_selectors: str
     to_read_selector: str
     recently_read_selector: str
     request_delay_ms: int
     request_jitter_ms: int
+    data_dir: str
 
 
 class StoryGraphClient:
@@ -38,7 +44,11 @@ class StoryGraphClient:
         self._browser = self._playwright.chromium.launch(headless=self._config.headless)
         context = self._browser.new_context()
         self._page = context.new_page()
-        self.login()
+        try:
+            self.login()
+        except Exception as exc:  # noqa: BLE001
+            self._dump_debug_artifacts("login_failed")
+            raise RuntimeError(f"StoryGraph login failed ({self.page.url}): {exc}") from exc
         return self
 
     def __exit__(self, exc_type, exc, exc_tb) -> None:
@@ -56,33 +66,17 @@ class StoryGraphClient:
     def login(self) -> None:
         login_url = f"{self._config.base_url}{self._config.login_path}"
         self.page.goto(login_url, wait_until="domcontentloaded", timeout=45_000)
-        self._fill_first(
-            [
-                "input[name='user[email]']",
-                "input[type='email']",
-                "input[name='email']",
-            ],
-            self._config.email,
-        )
-        self._fill_first(
-            [
-                "input[name='user[password]']",
-                "input[type='password']",
-                "input[name='password']",
-            ],
-            self._config.password,
-        )
-        self._click_first(
-            [
-                "button:has-text('Log in')",
-                "button:has-text('Sign in')",
-                "input[type='submit']",
-            ]
-        )
+        self._dismiss_common_prompts()
+        self._fill_login_email()
+        self._fill_login_password()
+        self._submit_login()
         self.page.wait_for_load_state("networkidle", timeout=45_000)
-        if "sign_in" in self.page.url:
-            raise RuntimeError("StoryGraph login appears to have failed")
         self._sleep()
+        if self._is_login_page():
+            self._dump_debug_artifacts("login_still_on_signin")
+            raise RuntimeError(
+                "StoryGraph login appears to have failed; still on login form"
+            )
         LOGGER.info("StoryGraph login complete")
 
     def search_books(
@@ -165,29 +159,117 @@ class StoryGraphClient:
     def capture_failure(self, path: str) -> None:
         self.page.screenshot(path=path, full_page=True)
 
-    def _fill_first(self, selectors: list[str], value: str) -> None:
+    def _fill_first(self, selectors: list[str], value: str, *, required: bool = True) -> bool:
         for selector in selectors:
             try:
                 locator = self.page.locator(selector).first
                 if locator.count() == 0:
                     continue
                 locator.fill(value)
-                return
+                return True
             except Exception:  # noqa: BLE001
                 continue
-        raise RuntimeError(f"Could not find field for selectors: {selectors}")
+        if required:
+            raise RuntimeError(f"Could not find field for selectors: {selectors}")
+        return False
 
-    def _click_first(self, selectors: list[str]) -> None:
+    def _click_first(self, selectors: list[str], *, required: bool = True) -> bool:
         for selector in selectors:
             try:
                 locator = self.page.locator(selector).first
                 if locator.count() == 0:
                     continue
                 locator.click(timeout=10_000)
-                return
+                return True
             except Exception:  # noqa: BLE001
                 continue
-        raise RuntimeError(f"Could not click any selector: {selectors}")
+        if required:
+            raise RuntimeError(f"Could not click any selector: {selectors}")
+        return False
+
+    def _fill_login_email(self) -> None:
+        selectors = self._parse_selector_csv(self._config.login_email_selectors)
+        if self._fill_first(selectors, self._config.email, required=False):
+            return
+        if self._fill_by_label(["Email", "E-mail", "Username"], self._config.email):
+            return
+        if self._fill_by_placeholder(["Email", "Username"], self._config.email):
+            return
+        raise RuntimeError("Could not locate login email/username field")
+
+    def _fill_login_password(self) -> None:
+        selectors = self._parse_selector_csv(self._config.login_password_selectors)
+        if self._fill_first(selectors, self._config.password, required=False):
+            return
+        if self._fill_by_label(["Password"], self._config.password):
+            return
+        if self._fill_by_placeholder(["Password"], self._config.password):
+            return
+        raise RuntimeError("Could not locate login password field")
+
+    def _submit_login(self) -> None:
+        selectors = self._parse_selector_csv(self._config.login_submit_selectors)
+        if self._click_first(selectors, required=False):
+            return
+        try:
+            self.page.keyboard.press("Enter")
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("Could not submit login form") from exc
+
+    def _fill_by_label(self, labels: list[str], value: str) -> bool:
+        for label in labels:
+            try:
+                locator = self.page.get_by_label(label, exact=False).first
+                if locator.count() == 0:
+                    continue
+                locator.fill(value)
+                return True
+            except Exception:  # noqa: BLE001
+                continue
+        return False
+
+    def _fill_by_placeholder(self, placeholders: list[str], value: str) -> bool:
+        for placeholder in placeholders:
+            try:
+                locator = self.page.get_by_placeholder(placeholder, exact=False).first
+                if locator.count() == 0:
+                    continue
+                locator.fill(value)
+                return True
+            except Exception:  # noqa: BLE001
+                continue
+        return False
+
+    def _is_login_page(self) -> bool:
+        if "sign_in" in self.page.url or "login" in self.page.url:
+            return True
+        return self.page.locator("input[type='password']").count() > 0
+
+    def _parse_selector_csv(self, raw: str) -> list[str]:
+        return [selector.strip() for selector in raw.split(",") if selector.strip()]
+
+    def _dismiss_common_prompts(self) -> None:
+        self._click_first(
+            [
+                "button:has-text('Accept all')",
+                "button:has-text('Accept All')",
+                "button:has-text('I agree')",
+                "button:has-text('Accept')",
+            ],
+            required=False,
+        )
+
+    def _dump_debug_artifacts(self, reason: str) -> None:
+        try:
+            root = Path(self._config.data_dir) / "debug"
+            root.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            prefix = root / f"{stamp}_{reason}"
+            self.page.screenshot(path=str(prefix.with_suffix(".png")), full_page=True)
+            prefix.with_suffix(".html").write_text(self.page.content(), encoding="utf-8")
+            LOGGER.info("Wrote login debug artifacts to %s*", prefix)
+        except Exception:  # noqa: BLE001
+            LOGGER.warning("Could not write login debug artifacts")
 
     def _absolute_url(self, href: str) -> str:
         if href.startswith("http://") or href.startswith("https://"):

@@ -25,6 +25,7 @@ Then run the same compose command; the container loops with sleep intervals.
 - `errors.log`: JSONL error and manual-review queue
 - `run_summary.json`: last run metrics
 - `screenshots/*.png`: browser capture on failure
+- `debug/*.(png|html)`: login debug artifacts when auth selectors fail
 
 ## Recovery
 If StoryGraph layout changes break automation:
@@ -32,5 +33,7 @@ If StoryGraph layout changes break automation:
 2. Update selector env vars:
 - `SG_TO_READ_SELECTOR`
 - `SG_RECENTLY_READ_SELECTOR`
+ - `SG_LOGIN_EMAIL_SELECTORS`
+ - `SG_LOGIN_PASSWORD_SELECTORS`
+ - `SG_LOGIN_SUBMIT_SELECTORS`
 3. Re-run with `DRY_RUN=true`.
-

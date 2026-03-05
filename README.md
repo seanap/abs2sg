@@ -25,10 +25,12 @@ docker compose up --build
 - `errors.log`
 - `run_summary.json`
 - `screenshots/` for UI failure captures
+- `debug/` for login-page screenshot + HTML dumps when auth fails
 
 ## Main Config (`.env`)
 - `ABS_URL`, `ABS_TOKEN`, `ABS_LIBRARY_ID`
 - `SG_EMAIL`, `SG_PASSWORD`
+- `SG_LOGIN_EMAIL_SELECTORS`, `SG_LOGIN_PASSWORD_SELECTORS`, `SG_LOGIN_SUBMIT_SELECTORS`
 - `DRY_RUN`, `MAX_ACTIONS_PER_RUN`
 - `REQUEST_DELAY_MS`, `REQUEST_JITTER_MS`
 - `MATCH_THRESHOLD`

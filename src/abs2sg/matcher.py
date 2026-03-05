@@ -35,6 +35,15 @@ def score_candidate(book: AbsBook, candidate: StoryGraphCandidate) -> float:
     return (0.75 * title_score) + (0.25 * author_score)
 
 
+def is_low_quality_candidate(candidate: StoryGraphCandidate) -> bool:
+    snippet = candidate.snippet.lower()
+    if "missing page info" in snippet:
+        return True
+    if "user-added" in snippet or "user added" in snippet:
+        return True
+    return False
+
+
 def pick_best_candidate(
     book: AbsBook,
     candidates: list[StoryGraphCandidate],
@@ -43,7 +52,12 @@ def pick_best_candidate(
     if not candidates:
         return None, 0.0
 
-    best = max(candidates, key=lambda candidate: score_candidate(book, candidate))
+    high_quality = [candidate for candidate in candidates if not is_low_quality_candidate(candidate)]
+    if not high_quality:
+        best_low_quality = max(candidates, key=lambda candidate: score_candidate(book, candidate))
+        return None, score_candidate(book, best_low_quality)
+
+    best = max(high_quality, key=lambda candidate: score_candidate(book, candidate))
     score = score_candidate(book, best)
     if score < threshold:
         return None, score

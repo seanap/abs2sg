@@ -52,5 +52,10 @@ Use persisted browser state to improve repeated runs:
 Optional import via env (when file copy is inconvenient):
 - `SG_STORAGE_STATE_B64=<base64_of_storage_state_json>`
 
+Interactive capture helper (desktop machine):
+```bash
+python scripts/capture_storygraph_state.py --print-b64
+```
+
 If a run fails in loop mode, retry cadence is controlled by:
 - `ERROR_RETRY_MINUTES` (defaults to `15`, not full daily interval)

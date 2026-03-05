@@ -85,6 +85,11 @@ Linux example:
 base64 -w0 storage_state.json
 ```
 
+Helper script (run on a machine with GUI browser access):
+```bash
+python scripts/capture_storygraph_state.py --print-b64
+```
+
 ## Docs
 - `docs/architecture.md`
 - `docs/matching.md`

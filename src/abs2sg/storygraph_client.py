@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import json
 import logging
 import random
 import re
@@ -36,6 +38,8 @@ class StoryGraphConfig:
     login_retry_delay_seconds: int
     storage_state_path: str
     save_storage_state: bool
+    storage_state_b64: str
+    try_existing_session_first: bool
     data_dir: str
 
 
@@ -49,6 +53,7 @@ class StoryGraphClient:
     def __enter__(self) -> StoryGraphClient:
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(headless=self._config.headless)
+        self._maybe_write_storage_state_from_b64()
         context_kwargs: dict = {}
         storage_path = Path(self._config.storage_state_path)
         if storage_path.exists():
@@ -101,6 +106,10 @@ class StoryGraphClient:
             raise last_error
 
     def _login_once(self) -> None:
+        if self._config.try_existing_session_first:
+            if self._session_is_already_authenticated():
+                return
+
         login_url = f"{self._config.base_url}{self._config.login_path}"
         self.page.goto(login_url, wait_until="domcontentloaded", timeout=45_000)
         self._dismiss_common_prompts()
@@ -121,6 +130,17 @@ class StoryGraphClient:
             raise RuntimeError(
                 "StoryGraph login appears to have failed; still on login form"
             )
+
+    def _session_is_already_authenticated(self) -> bool:
+        self.page.goto(self._config.base_url, wait_until="domcontentloaded", timeout=45_000)
+        self._dismiss_common_prompts()
+        self._sleep()
+        if self._is_cloudflare_challenge():
+            return False
+        if self._is_login_page():
+            return False
+        LOGGER.info("StoryGraph session appears authenticated without login form")
+        return True
 
     def search_books(
         self,
@@ -382,6 +402,22 @@ class StoryGraphClient:
             LOGGER.info("Saved StoryGraph storage state to %s", path)
         except Exception:  # noqa: BLE001
             LOGGER.warning("Could not save StoryGraph storage state")
+
+    def _maybe_write_storage_state_from_b64(self) -> None:
+        raw = self._config.storage_state_b64
+        if not raw:
+            return
+        try:
+            decoded = base64.b64decode(raw)
+            payload = json.loads(decoded.decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("storage state is not a JSON object")
+            path = Path(self._config.storage_state_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            LOGGER.info("Loaded StoryGraph storage state from SG_STORAGE_STATE_B64")
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("Invalid SG_STORAGE_STATE_B64 payload") from exc
 
     def _absolute_url(self, href: str) -> str:
         if href.startswith("http://") or href.startswith("https://"):

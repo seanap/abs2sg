@@ -36,6 +36,8 @@ docker compose up --build
 - `SG_CHALLENGE_WAIT_SECONDS` (wait time for Cloudflare verification page)
 - `SG_LOGIN_MAX_ATTEMPTS`, `SG_LOGIN_RETRY_DELAY_SECONDS`
 - `SG_STORAGE_STATE_PATH`, `SG_SAVE_STORAGE_STATE`
+- `SG_STORAGE_STATE_B64` (optional base64 Playwright storage_state JSON)
+- `SG_TRY_EXISTING_SESSION_FIRST` (skip direct login when valid session already exists)
 - `MATCH_THRESHOLD`
 - `SYNC_INTERVAL_MINUTES` (`0` = run once, `>0` = loop)
 - `ERROR_RETRY_MINUTES` (retry delay after failed run in loop mode)
@@ -71,6 +73,17 @@ The `docker-publish.yml` workflow builds and pushes `${DOCKERHUB_USERNAME}/abs2s
 - StoryGraph can present Cloudflare bot checks. The app will wait `SG_CHALLENGE_WAIT_SECONDS` and then log explicit challenge errors plus debug artifacts.
 - Matching is heuristic (title + author similarity). Ambiguous books are logged for review.
 - `in_progress` ABS books are intentionally skipped in v1.
+
+## Session Import (Cloudflare Workaround)
+If server-side login is blocked, import a browser-authenticated session:
+1. Obtain a Playwright `storage_state.json` from a successful manual browser login.
+2. Base64-encode it and set `SG_STORAGE_STATE_B64` in `.env`.
+3. Keep `SG_TRY_EXISTING_SESSION_FIRST=true`.
+
+Linux example:
+```bash
+base64 -w0 storage_state.json
+```
 
 ## Docs
 - `docs/architecture.md`

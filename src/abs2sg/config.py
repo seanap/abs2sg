@@ -46,6 +46,8 @@ class Config:
     sg_login_retry_delay_seconds: int
     sg_storage_state_path: Path
     sg_save_storage_state: bool
+    sg_storage_state_b64: str
+    sg_try_existing_session_first: bool
     match_threshold: float
     sync_interval_minutes: int
     error_retry_minutes: int
@@ -106,6 +108,8 @@ class Config:
                 os.getenv("SG_STORAGE_STATE_PATH", "/data/storygraph_storage_state.json")
             ),
             sg_save_storage_state=_env_bool("SG_SAVE_STORAGE_STATE", True),
+            sg_storage_state_b64=os.getenv("SG_STORAGE_STATE_B64", "").strip(),
+            sg_try_existing_session_first=_env_bool("SG_TRY_EXISTING_SESSION_FIRST", True),
             match_threshold=_env_float("MATCH_THRESHOLD", 0.70),
             sync_interval_minutes=_env_int("SYNC_INTERVAL_MINUTES", 0),
             error_retry_minutes=_env_int("ERROR_RETRY_MINUTES", 15),

@@ -47,6 +47,10 @@ If logs indicate Cloudflare challenge pages (`Just a moment...` or `cf-turnstile
 Use persisted browser state to improve repeated runs:
 - `SG_STORAGE_STATE_PATH=/data/storygraph_storage_state.json`
 - `SG_SAVE_STORAGE_STATE=true`
+- `SG_TRY_EXISTING_SESSION_FIRST=true`
+
+Optional import via env (when file copy is inconvenient):
+- `SG_STORAGE_STATE_B64=<base64_of_storage_state_json>`
 
 If a run fails in loop mode, retry cadence is controlled by:
 - `ERROR_RETRY_MINUTES` (defaults to `15`, not full daily interval)

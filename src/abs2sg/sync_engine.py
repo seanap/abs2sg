@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .abs_client import AbsClient
@@ -42,7 +42,7 @@ class SyncEngine:
         )
 
     def run_once(self) -> RunStats:
-        started_at = datetime.now(tz=UTC)
+        started_at = datetime.now(tz=timezone.utc)
         stats = RunStats(dry_run=self._config.dry_run)
         books = self._abs_client.fetch_books(self._config.abs_library_id)
         stats.total_books = len(books)
@@ -161,7 +161,7 @@ class SyncEngine:
         return None
 
     def _write_summary(self, stats: RunStats, started_at: datetime) -> None:
-        ended_at = datetime.now(tz=UTC)
+        ended_at = datetime.now(tz=timezone.utc)
         payload = asdict(stats)
         payload["started_at"] = started_at.isoformat()
         payload["ended_at"] = ended_at.isoformat()
@@ -176,5 +176,5 @@ class SyncEngine:
     def _screenshot_path(self, abs_id: str) -> Path:
         folder = self._config.data_dir / "screenshots"
         folder.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         return folder / f"{timestamp}_{abs_id}.png"

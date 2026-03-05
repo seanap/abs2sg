@@ -47,6 +47,7 @@ class Config:
     sg_storage_state_path: Path
     sg_save_storage_state: bool
     sg_storage_state_b64: str
+    sg_cookie_header: str
     sg_try_existing_session_first: bool
     match_threshold: float
     sync_interval_minutes: int
@@ -109,6 +110,7 @@ class Config:
             ),
             sg_save_storage_state=_env_bool("SG_SAVE_STORAGE_STATE", True),
             sg_storage_state_b64=os.getenv("SG_STORAGE_STATE_B64", "").strip(),
+            sg_cookie_header=os.getenv("SG_COOKIE_HEADER", "").strip(),
             sg_try_existing_session_first=_env_bool("SG_TRY_EXISTING_SESSION_FIRST", True),
             match_threshold=_env_float("MATCH_THRESHOLD", 0.70),
             sync_interval_minutes=_env_int("SYNC_INTERVAL_MINUTES", 0),

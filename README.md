@@ -37,6 +37,7 @@ docker compose up --build
 - `SG_LOGIN_MAX_ATTEMPTS`, `SG_LOGIN_RETRY_DELAY_SECONDS`
 - `SG_STORAGE_STATE_PATH`, `SG_SAVE_STORAGE_STATE`
 - `SG_STORAGE_STATE_B64` (optional base64 Playwright storage_state JSON)
+- `SG_COOKIE_HEADER` (optional raw Cookie header copied from browser request)
 - `SG_TRY_EXISTING_SESSION_FIRST` (skip direct login when valid session already exists)
 - `MATCH_THRESHOLD`
 - `SYNC_INTERVAL_MINUTES` (`0` = run once, `>0` = loop)
@@ -75,6 +76,10 @@ The `docker-publish.yml` workflow builds and pushes `${DOCKERHUB_USERNAME}/abs2s
 - `in_progress` ABS books are intentionally skipped in v1.
 
 ## Session Import (Cloudflare Workaround)
+Fast path (recommended):
+1. In Firefox Network tab, copy the full `cookie` request header value from a logged-in StoryGraph request.
+2. Set `SG_COOKIE_HEADER=<that value>` in `.env`.
+
 If server-side login is blocked, import a browser-authenticated session:
 1. Obtain a Playwright `storage_state.json` from a successful manual browser login.
 2. Base64-encode it and set `SG_STORAGE_STATE_B64` in `.env`.

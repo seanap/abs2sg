@@ -39,6 +39,7 @@ class StoryGraphConfig:
     storage_state_path: str
     save_storage_state: bool
     storage_state_b64: str
+    cookie_header: str
     try_existing_session_first: bool
     data_dir: str
 
@@ -54,6 +55,7 @@ class StoryGraphClient:
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(headless=self._config.headless)
         self._maybe_write_storage_state_from_b64()
+        self._maybe_write_storage_state_from_cookie_header()
         context_kwargs: dict = {}
         storage_path = Path(self._config.storage_state_path)
         if storage_path.exists():
@@ -418,6 +420,45 @@ class StoryGraphClient:
             LOGGER.info("Loaded StoryGraph storage state from SG_STORAGE_STATE_B64")
         except Exception as exc:  # noqa: BLE001
             raise RuntimeError("Invalid SG_STORAGE_STATE_B64 payload") from exc
+
+    def _maybe_write_storage_state_from_cookie_header(self) -> None:
+        raw = self._config.cookie_header
+        if not raw:
+            return
+
+        try:
+            cookies = []
+            for part in raw.split(";"):
+                token = part.strip()
+                if not token or "=" not in token:
+                    continue
+                name, value = token.split("=", 1)
+                cookies.append(
+                    {
+                        "name": name.strip(),
+                        "value": value.strip(),
+                        "domain": "app.thestorygraph.com",
+                        "path": "/",
+                        "expires": -1,
+                        "httpOnly": False,
+                        "secure": True,
+                        "sameSite": "Lax",
+                    }
+                )
+
+            if not cookies:
+                raise ValueError("no valid cookie pairs found")
+
+            payload = {"cookies": cookies, "origins": []}
+            path = Path(self._config.storage_state_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            LOGGER.info(
+                "Loaded StoryGraph storage state from SG_COOKIE_HEADER (%s cookies)",
+                len(cookies),
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("Invalid SG_COOKIE_HEADER payload") from exc
 
     def _absolute_url(self, href: str) -> str:
         if href.startswith("http://") or href.startswith("https://"):

@@ -69,6 +69,7 @@ class SyncEngine:
             storage_state_path=str(self._config.sg_storage_state_path),
             save_storage_state=self._config.sg_save_storage_state,
             storage_state_b64=self._config.sg_storage_state_b64,
+            cookie_header=self._config.sg_cookie_header,
             try_existing_session_first=self._config.sg_try_existing_session_first,
             data_dir=str(self._config.data_dir),
         )

@@ -51,6 +51,7 @@ Use persisted browser state to improve repeated runs:
 
 Optional import via env (when file copy is inconvenient):
 - `SG_STORAGE_STATE_B64=<base64_of_storage_state_json>`
+- `SG_COOKIE_HEADER=<raw_cookie_header_from_logged_in_browser_request>`
 
 Interactive capture helper (desktop machine):
 ```bash

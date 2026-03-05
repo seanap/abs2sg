@@ -1,4 +1,5 @@
 from abs2sg.matcher import (
+    canonical_title,
     candidate_quality_score,
     is_low_quality_candidate,
     normalize_text,
@@ -168,3 +169,68 @@ def test_rank_candidates_orders_by_similarity_then_quality() -> None:
     ranked = rank_candidates(book, candidates)
     assert ranked
     assert ranked[0].candidate.url == "b"
+
+
+def test_canonical_title_strips_series_and_subtitle() -> None:
+    assert canonical_title("The Psychology of Money: Timeless Lessons") == "the psychology of money"
+    assert canonical_title("Primal Hunter 4") == "primal hunter 4"
+    assert canonical_title("Omega Rising, Book 1") == "omega rising"
+
+
+def test_score_candidate_prefers_subtitle_variant_of_same_book() -> None:
+    book = AbsBook(
+        abs_id="6",
+        title="The Psychology of Money",
+        authors=["Morgan Housel"],
+        status=ReadingStatus.UNREAD,
+        raw={},
+    )
+    candidate = StoryGraphCandidate(
+        url="u1",
+        title="The Psychology of Money: Timeless Lessons on Wealth, Greed, and Happiness",
+        authors=["Morgan Housel"],
+        snippet="256 pages • paperback • 2020 • 84 editions",
+    )
+    assert score_candidate(book, candidate) >= 0.80
+
+
+def test_pick_best_candidate_allows_exact_title_when_quality_is_slightly_negative() -> None:
+    book = AbsBook(
+        abs_id="7",
+        title="Tower of Jack",
+        authors=["Sean O."],
+        status=ReadingStatus.UNREAD,
+        raw={},
+    )
+    candidates = [
+        StoryGraphCandidate(
+            url="u1",
+            title="Tower of Jack",
+            authors=["Sean O."],
+            snippet="missing duration info • audio • 1 edition",
+        )
+    ]
+    best, score = pick_best_candidate(book, candidates, threshold=0.7, min_quality=0.0)
+    assert best is not None
+    assert best.url == "u1"
+    assert score >= 0.7
+
+
+def test_pick_best_candidate_rejects_study_guides_even_with_name_overlap() -> None:
+    book = AbsBook(
+        abs_id="8",
+        title="Never Flinch",
+        authors=["Stephen King"],
+        status=ReadingStatus.UNREAD,
+        raw={},
+    )
+    candidates = [
+        StoryGraphCandidate(
+            url="guide",
+            title="Study Guide: Never Flinch by Stephen King",
+            authors=["Unknown"],
+            snippet="43 pages • paperback • 1 edition",
+        )
+    ]
+    best, _ = pick_best_candidate(book, candidates, threshold=0.3, min_quality=-0.2)
+    assert best is None

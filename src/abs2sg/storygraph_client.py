@@ -206,6 +206,7 @@ class StoryGraphClient:
             "/books/browse",
             "/books/add",
             "/books/import",
+            "/editions",
         )
         if any(path in token for path in blocked):
             return False

@@ -22,8 +22,49 @@ def similarity(left: str, right: str) -> float:
     return SequenceMatcher(a=left_norm, b=right_norm).ratio()
 
 
+def canonical_title(value: str) -> str:
+    text = normalize_text(value)
+    text = re.sub(r"\b(unabridged|abridged)\b", " ", text)
+    text = re.sub(r"\b(book|volume|vol|part)\s*\d+\b", " ", text)
+    text = re.sub(r"#\s*\d+(\.\d+)?", " ", text)
+    text = re.split(r"\s*[:\-]\s*", text, maxsplit=1)[0]
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _contains_reference_material_terms(title: str) -> bool:
+    normalized = normalize_text(title)
+    blocked_terms = (
+        "summary of",
+        "study guide",
+        "workbook",
+        "quick read",
+        "analysis of",
+    )
+    return any(term in normalized for term in blocked_terms)
+
+
+def _title_similarity(book_title: str, candidate_title: str) -> float:
+    full = similarity(book_title, candidate_title)
+    book_core = canonical_title(book_title)
+    candidate_core = canonical_title(candidate_title)
+
+    core_scores = [
+        similarity(book_core, candidate_core),
+        similarity(book_title, candidate_core),
+        similarity(book_core, candidate_title),
+    ]
+    best = max([full, *core_scores])
+
+    if book_core and candidate_core:
+        if book_core in candidate_core or candidate_core in book_core:
+            if min(len(book_core), len(candidate_core)) >= 8:
+                best = max(best, 0.90)
+    return best
+
+
 def score_candidate(book: AbsBook, candidate: StoryGraphCandidate) -> float:
-    title_score = similarity(book.title, candidate.title)
+    title_score = _title_similarity(book.title, candidate.title)
 
     if not book.authors or not candidate.authors:
         return title_score
@@ -33,7 +74,7 @@ def score_candidate(book: AbsBook, candidate: StoryGraphCandidate) -> float:
         for book_author in book.authors
         for candidate_author in candidate.authors
     )
-    return (0.75 * title_score) + (0.25 * author_score)
+    return (0.85 * title_score) + (0.15 * author_score)
 
 
 def is_low_quality_candidate(candidate: StoryGraphCandidate) -> bool:
@@ -47,6 +88,7 @@ def is_low_quality_candidate(candidate: StoryGraphCandidate) -> bool:
 
 def candidate_quality_score(candidate: StoryGraphCandidate) -> float:
     snippet = candidate.snippet.lower()
+    title = candidate.title.lower()
     score = 0.0
 
     if re.search(r"\b\d+\s*pages?\b", snippet):
@@ -70,6 +112,8 @@ def candidate_quality_score(candidate: StoryGraphCandidate) -> float:
         score -= 0.45
     if "digital" in snippet and "pages" not in snippet:
         score -= 0.05
+    if _contains_reference_material_terms(title):
+        score -= 0.45
 
     return max(-1.0, min(1.0, score))
 
@@ -92,6 +136,25 @@ def rank_candidates(book: AbsBook, candidates: list[StoryGraphCandidate]) -> lis
     ]
     ranked.sort(key=lambda item: (item.similarity, item.quality), reverse=True)
     return ranked
+
+
+def _is_high_confidence_title_match(
+    book: AbsBook,
+    candidate: StoryGraphCandidate,
+    score: float,
+) -> bool:
+    if _contains_reference_material_terms(candidate.title):
+        return False
+    if score >= 0.90:
+        return True
+    book_core = canonical_title(book.title)
+    candidate_core = canonical_title(candidate.title)
+    if book_core and candidate_core and similarity(book_core, candidate_core) >= 0.92:
+        return True
+    if book_core and candidate_core:
+        if (book_core in candidate_core or candidate_core in book_core) and score >= 0.72:
+            return True
+    return False
 
 
 def pick_best_candidate(
@@ -122,5 +185,7 @@ def pick_best_candidate(
     chosen = max(contenders, key=lambda item: (item.quality, item.similarity))
 
     if chosen.quality < min_quality:
+        if _is_high_confidence_title_match(book, chosen.candidate, chosen.similarity):
+            return chosen.candidate, chosen.similarity
         return None, chosen.similarity
     return chosen.candidate, chosen.similarity

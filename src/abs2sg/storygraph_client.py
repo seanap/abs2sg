@@ -271,7 +271,9 @@ class StoryGraphClient:
         email_selectors = self._parse_selector_csv(self._config.login_email_selectors)
         password_selectors = self._parse_selector_csv(self._config.login_password_selectors)
         has_email = any(self.page.locator(selector).count() > 0 for selector in email_selectors)
-        has_password = any(self.page.locator(selector).count() > 0 for selector in password_selectors)
+        has_password = any(
+            self.page.locator(selector).count() > 0 for selector in password_selectors
+        )
         return has_email and has_password
 
     def _is_cloudflare_challenge(self) -> bool:

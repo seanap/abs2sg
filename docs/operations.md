@@ -37,3 +37,8 @@ If StoryGraph layout changes break automation:
  - `SG_LOGIN_PASSWORD_SELECTORS`
  - `SG_LOGIN_SUBMIT_SELECTORS`
 3. Re-run with `DRY_RUN=true`.
+
+If logs indicate Cloudflare challenge pages (`Just a moment...` or `cf-turnstile-response`):
+1. Increase `SG_CHALLENGE_WAIT_SECONDS` (for example `180`).
+2. Keep runs low-frequency and avoid burst redeploy loops.
+3. Review `/data/debug/*.html` and `/data/debug/*.png` for challenge details.

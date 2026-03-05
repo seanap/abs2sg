@@ -33,6 +33,7 @@ docker compose up --build
 - `SG_LOGIN_EMAIL_SELECTORS`, `SG_LOGIN_PASSWORD_SELECTORS`, `SG_LOGIN_SUBMIT_SELECTORS`
 - `DRY_RUN`, `MAX_ACTIONS_PER_RUN`
 - `REQUEST_DELAY_MS`, `REQUEST_JITTER_MS`
+- `SG_CHALLENGE_WAIT_SECONDS` (wait time for Cloudflare verification page)
 - `MATCH_THRESHOLD`
 - `SYNC_INTERVAL_MINUTES` (`0` = run once, `>0` = loop)
 
@@ -64,6 +65,7 @@ The `docker-publish.yml` workflow builds and pushes `${DOCKERHUB_USERNAME}/abs2s
 
 ## Known Limits
 - StoryGraph UI selectors can change; override selectors via env vars if needed.
+- StoryGraph can present Cloudflare bot checks. The app will wait `SG_CHALLENGE_WAIT_SECONDS` and then log explicit challenge errors plus debug artifacts.
 - Matching is heuristic (title + author similarity). Ambiguous books are logged for review.
 - `in_progress` ABS books are intentionally skipped in v1.
 

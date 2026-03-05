@@ -41,6 +41,7 @@ class Config:
     max_actions_per_run: int
     request_delay_ms: int
     request_jitter_ms: int
+    sg_challenge_wait_seconds: int
     match_threshold: float
     sync_interval_minutes: int
     sg_search_url_template: str
@@ -93,6 +94,7 @@ class Config:
             max_actions_per_run=_env_int("MAX_ACTIONS_PER_RUN", 100),
             request_delay_ms=_env_int("REQUEST_DELAY_MS", 2500),
             request_jitter_ms=_env_int("REQUEST_JITTER_MS", 1000),
+            sg_challenge_wait_seconds=_env_int("SG_CHALLENGE_WAIT_SECONDS", 90),
             match_threshold=_env_float("MATCH_THRESHOLD", 0.70),
             sync_interval_minutes=_env_int("SYNC_INTERVAL_MINUTES", 0),
             sg_search_url_template=os.getenv(

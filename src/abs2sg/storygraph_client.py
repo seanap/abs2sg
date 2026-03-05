@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import logging
 import random
+import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +31,7 @@ class StoryGraphConfig:
     recently_read_selector: str
     request_delay_ms: int
     request_jitter_ms: int
+    challenge_wait_seconds: int
     data_dir: str
 
 
@@ -67,6 +70,7 @@ class StoryGraphClient:
         login_url = f"{self._config.base_url}{self._config.login_path}"
         self.page.goto(login_url, wait_until="domcontentloaded", timeout=45_000)
         self._dismiss_common_prompts()
+        self._wait_for_login_surface()
         self._fill_login_email()
         self._fill_login_password()
         self._submit_login()
@@ -244,6 +248,62 @@ class StoryGraphClient:
         if "sign_in" in self.page.url or "login" in self.page.url:
             return True
         return self.page.locator("input[type='password']").count() > 0
+
+    def _wait_for_login_surface(self) -> None:
+        deadline = time.time() + max(self._config.challenge_wait_seconds, 5)
+        while time.time() < deadline:
+            if self._has_login_surface():
+                return
+            if self._is_cloudflare_challenge():
+                self.page.wait_for_timeout(2_000)
+                continue
+            self.page.wait_for_timeout(1_000)
+
+        if self._is_cloudflare_challenge():
+            ray_id = self._extract_cloudflare_ray_id()
+            raise RuntimeError(
+                "Blocked by Cloudflare challenge; no login form available "
+                f"after {self._config.challenge_wait_seconds}s (ray_id={ray_id})"
+            )
+        raise RuntimeError("StoryGraph login form did not appear before timeout")
+
+    def _has_login_surface(self) -> bool:
+        email_selectors = self._parse_selector_csv(self._config.login_email_selectors)
+        password_selectors = self._parse_selector_csv(self._config.login_password_selectors)
+        has_email = any(self.page.locator(selector).count() > 0 for selector in email_selectors)
+        has_password = any(self.page.locator(selector).count() > 0 for selector in password_selectors)
+        return has_email and has_password
+
+    def _is_cloudflare_challenge(self) -> bool:
+        try:
+            title = self.page.title().lower()
+        except Exception:  # noqa: BLE001
+            title = ""
+        if "just a moment" in title:
+            return True
+        if "__cf_chl" in self.page.url:
+            return True
+        return (
+            self.page.locator("input[name='cf-turnstile-response']").count() > 0
+            or self.page.locator("text=Performing security verification").count() > 0
+            or self.page.locator("text=Enable JavaScript and cookies to continue").count() > 0
+        )
+
+    def _extract_cloudflare_ray_id(self) -> str:
+        try:
+            text = self.page.locator(".ray-id code").first.inner_text(timeout=1_000).strip()
+            if text:
+                return text
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            html = self.page.content()
+            match = re.search(r"Ray ID:\s*<code>([^<]+)</code>", html, flags=re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+        except Exception:  # noqa: BLE001
+            pass
+        return "unknown"
 
     def _parse_selector_csv(self, raw: str) -> list[str]:
         return [selector.strip() for selector in raw.split(",") if selector.strip()]

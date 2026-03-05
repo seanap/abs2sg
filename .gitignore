@@ -2,5 +2,6 @@ local/
 .env
 data/*
 !data/.gitkeep
+data/debug/
 __pycache__/
 *.pyc

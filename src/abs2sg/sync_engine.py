@@ -63,6 +63,7 @@ class SyncEngine:
             recently_read_selector=self._config.sg_recently_read_selector,
             request_delay_ms=self._config.request_delay_ms,
             request_jitter_ms=self._config.request_jitter_ms,
+            challenge_wait_seconds=self._config.sg_challenge_wait_seconds,
             data_dir=str(self._config.data_dir),
         )
 

@@ -198,26 +198,48 @@ class StoryGraphClient:
         self._sleep()
 
         if target_shelf == "to-read":
-            self._click_first(
+            if self._click_first(
                 [
                     selector.strip()
                     for selector in self._config.to_read_selector.split(",")
                     if selector.strip()
-                ]
+                ],
+                required=False,
+            ):
+                self._sleep()
+                return
+            if self._set_status_via_select(["to read", "to-read", "want to read"]):
+                self._sleep()
+                return
+            if self._set_status_via_menu(["to-read", "to read", "want to read"]):
+                self._sleep()
+                return
+            raise RuntimeError(
+                "Could not set to-read shelf. "
+                f"Available clickable labels: {self._collect_clickable_labels()}"
             )
-            self._sleep()
-            return
 
         if target_shelf == "recently-read":
-            self._click_first(
+            if self._click_first(
                 [
                     selector.strip()
                     for selector in self._config.recently_read_selector.split(",")
                     if selector.strip()
-                ]
+                ],
+                required=False,
+            ):
+                self._sleep()
+                return
+            if self._set_status_via_select(["read", "finished", "done"]):
+                self._sleep()
+                return
+            if self._set_status_via_menu(["read", "finished", "done"]):
+                self._sleep()
+                return
+            raise RuntimeError(
+                "Could not set recently-read shelf. "
+                f"Available clickable labels: {self._collect_clickable_labels()}"
             )
-            self._sleep()
-            return
 
         raise ValueError(f"Unsupported target shelf: {target_shelf}")
 
@@ -370,6 +392,105 @@ class StoryGraphClient:
 
     def _parse_selector_csv(self, raw: str) -> list[str]:
         return [selector.strip() for selector in raw.split(",") if selector.strip()]
+
+    def _set_status_via_select(self, terms: list[str]) -> bool:
+        try:
+            selects = self.page.locator("select")
+            count = min(selects.count(), 10)
+        except Exception:  # noqa: BLE001
+            return False
+
+        for index in range(count):
+            select = selects.nth(index)
+            try:
+                options = select.locator("option")
+                option_count = min(options.count(), 50)
+                for option_index in range(option_count):
+                    option = options.nth(option_index)
+                    label = (option.inner_text(timeout=1_000) or "").strip().lower()
+                    if not label:
+                        continue
+                    if any(term in label for term in terms):
+                        value = option.get_attribute("value")
+                        if value is None:
+                            continue
+                        select.select_option(value=value, timeout=5_000)
+                        return True
+            except Exception:  # noqa: BLE001
+                continue
+        return False
+
+    def _set_status_via_menu(self, terms: list[str]) -> bool:
+        openers = [
+            "button:has-text('Status')",
+            "button:has-text('Read Status')",
+            "button:has-text('Shelf')",
+            "button[aria-haspopup='menu']",
+            "button[aria-haspopup='listbox']",
+            "button:has-text('Want to Read')",
+            "button:has-text('To-Read')",
+            "button:has-text('To Read')",
+            "button:has-text('Currently Reading')",
+            "button:has-text('Read')",
+        ]
+        self._click_first(openers, required=False)
+        self.page.wait_for_timeout(500)
+
+        for term in terms:
+            if self._click_label_candidates(
+                [
+                    term,
+                    term.replace("-", " "),
+                    term.title(),
+                    term.upper(),
+                ]
+            ):
+                return True
+        return False
+
+    def _click_label_candidates(self, labels: list[str]) -> bool:
+        for label in labels:
+            clean = label.strip()
+            if not clean:
+                continue
+            try:
+                for role in ("button", "menuitem", "link", "option"):
+                    locator = self.page.get_by_role(role, name=clean, exact=False).first
+                    if locator.count() > 0:
+                        locator.click(timeout=5_000)
+                        return True
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                if self._click_first(
+                    [
+                        f"button:has-text('{clean}')",
+                        f"a:has-text('{clean}')",
+                        f"li:has-text('{clean}')",
+                        f"[role='menuitem']:has-text('{clean}')",
+                    ],
+                    required=False,
+                ):
+                    return True
+            except Exception:  # noqa: BLE001
+                continue
+        return False
+
+    def _collect_clickable_labels(self) -> list[str]:
+        try:
+            nodes = self.page.locator("button, a, [role='button'], [role='menuitem']")
+            count = min(nodes.count(), 80)
+            labels: list[str] = []
+            for index in range(count):
+                text = (nodes.nth(index).inner_text(timeout=500) or "").strip()
+                if not text:
+                    continue
+                if text in labels:
+                    continue
+                labels.append(text)
+            return labels[:20]
+        except Exception:  # noqa: BLE001
+            return []
 
     def _dismiss_common_prompts(self) -> None:
         self._click_first(

@@ -143,10 +143,17 @@ class Config:
             ),
             sg_to_read_selector=os.getenv(
                 "SG_TO_READ_SELECTOR",
-                "button:has-text('To-Read'), button:has-text('to-read'), a:has-text('To-Read')",
+                (
+                    "button:has-text('To-Read'), button:has-text('To Read'), "
+                    "button:has-text('Want to Read'), button:has-text('to-read'), "
+                    "a:has-text('To-Read'), a:has-text('Want to Read')"
+                ),
             ),
             sg_recently_read_selector=os.getenv(
                 "SG_RECENTLY_READ_SELECTOR",
-                "button:has-text('Read'), button:has-text('Mark as read'), a:has-text('Read')",
+                (
+                    "button:has-text('Read'), button:has-text('Mark as read'), "
+                    "button:has-text('Finished'), a:has-text('Read'), a:has-text('Finished')"
+                ),
             ),
         )

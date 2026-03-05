@@ -157,7 +157,7 @@ class StoryGraphClient:
         self._sleep()
 
         anchors = self.page.locator("a[href*='/books/']")
-        count = min(anchors.count(), limit * 2)
+        count = min(anchors.count(), max(limit * 6, 40))
         seen: set[str] = set()
         candidates: list[StoryGraphCandidate] = []
 
@@ -167,7 +167,11 @@ class StoryGraphClient:
                 href = anchor.get_attribute("href")
                 if not href:
                     continue
+                if not self._is_valid_book_href(href):
+                    continue
                 full_url = self._absolute_url(href)
+                if not self._is_valid_book_href(full_url):
+                    continue
                 if full_url in seen:
                     continue
                 seen.add(full_url)
@@ -191,6 +195,21 @@ class StoryGraphClient:
                 continue
 
         return candidates
+
+    def _is_valid_book_href(self, href: str) -> bool:
+        token = href.strip().lower()
+        if "/books/" not in token:
+            return False
+        blocked = (
+            "/books/new",
+            "/books/search",
+            "/books/browse",
+            "/books/add",
+            "/books/import",
+        )
+        if any(path in token for path in blocked):
+            return False
+        return True
 
     def set_shelf(self, storygraph_url: str, target_shelf: str) -> None:
         self.page.goto(storygraph_url, wait_until="domcontentloaded", timeout=45_000)

@@ -216,8 +216,7 @@ class SyncEngine:
         if not ranked:
             return []
 
-        tie_delta = max(self._config.match_tie_delta, 0.0)
-        floor = max(self._config.match_threshold, best_score - tie_delta)
+        floor = self._config.match_threshold
         candidates = [
             item
             for item in ranked

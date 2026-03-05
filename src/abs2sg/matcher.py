@@ -10,7 +10,7 @@ def normalize_text(value: str) -> str:
     value = value.lower().strip()
     value = re.sub(r"[^a-z0-9\s]", " ", value)
     value = re.sub(r"\s+", " ", value)
-    return value
+    return value.strip()
 
 
 def similarity(left: str, right: str) -> float:
@@ -48,4 +48,3 @@ def pick_best_candidate(
     if score < threshold:
         return None, score
     return best, score
-

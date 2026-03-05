@@ -64,6 +64,10 @@ class SyncEngine:
             request_delay_ms=self._config.request_delay_ms,
             request_jitter_ms=self._config.request_jitter_ms,
             challenge_wait_seconds=self._config.sg_challenge_wait_seconds,
+            login_max_attempts=self._config.sg_login_max_attempts,
+            login_retry_delay_seconds=self._config.sg_login_retry_delay_seconds,
+            storage_state_path=str(self._config.sg_storage_state_path),
+            save_storage_state=self._config.sg_save_storage_state,
             data_dir=str(self._config.data_dir),
         )
 

@@ -32,10 +32,13 @@ def run() -> int:
     while True:
         try:
             engine.run_once()
+            sleep_seconds = interval_minutes * 60
+            LOGGER.info("Sleeping for %s seconds", sleep_seconds)
         except Exception:  # noqa: BLE001
             LOGGER.exception("Sync run failed")
-        sleep_seconds = interval_minutes * 60
-        LOGGER.info("Sleeping for %s seconds", sleep_seconds)
+            retry_seconds = max(config.error_retry_minutes, 1) * 60
+            LOGGER.info("Sleeping for %s seconds before retry", retry_seconds)
+            sleep_seconds = retry_seconds
         time.sleep(sleep_seconds)
 
 

@@ -40,5 +40,13 @@ If StoryGraph layout changes break automation:
 
 If logs indicate Cloudflare challenge pages (`Just a moment...` or `cf-turnstile-response`):
 1. Increase `SG_CHALLENGE_WAIT_SECONDS` (for example `180`).
-2. Keep runs low-frequency and avoid burst redeploy loops.
-3. Review `/data/debug/*.html` and `/data/debug/*.png` for challenge details.
+2. Increase retries: `SG_LOGIN_MAX_ATTEMPTS=5` and `SG_LOGIN_RETRY_DELAY_SECONDS=45`.
+3. Keep runs low-frequency and avoid burst redeploy loops.
+4. Review `/data/debug/*.html` and `/data/debug/*.png` for challenge details.
+
+Use persisted browser state to improve repeated runs:
+- `SG_STORAGE_STATE_PATH=/data/storygraph_storage_state.json`
+- `SG_SAVE_STORAGE_STATE=true`
+
+If a run fails in loop mode, retry cadence is controlled by:
+- `ERROR_RETRY_MINUTES` (defaults to `15`, not full daily interval)

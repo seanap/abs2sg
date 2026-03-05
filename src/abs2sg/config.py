@@ -42,8 +42,13 @@ class Config:
     request_delay_ms: int
     request_jitter_ms: int
     sg_challenge_wait_seconds: int
+    sg_login_max_attempts: int
+    sg_login_retry_delay_seconds: int
+    sg_storage_state_path: Path
+    sg_save_storage_state: bool
     match_threshold: float
     sync_interval_minutes: int
+    error_retry_minutes: int
     sg_search_url_template: str
     sg_login_path: str
     sg_login_email_selectors: str
@@ -95,8 +100,15 @@ class Config:
             request_delay_ms=_env_int("REQUEST_DELAY_MS", 2500),
             request_jitter_ms=_env_int("REQUEST_JITTER_MS", 1000),
             sg_challenge_wait_seconds=_env_int("SG_CHALLENGE_WAIT_SECONDS", 90),
+            sg_login_max_attempts=_env_int("SG_LOGIN_MAX_ATTEMPTS", 3),
+            sg_login_retry_delay_seconds=_env_int("SG_LOGIN_RETRY_DELAY_SECONDS", 30),
+            sg_storage_state_path=Path(
+                os.getenv("SG_STORAGE_STATE_PATH", "/data/storygraph_storage_state.json")
+            ),
+            sg_save_storage_state=_env_bool("SG_SAVE_STORAGE_STATE", True),
             match_threshold=_env_float("MATCH_THRESHOLD", 0.70),
             sync_interval_minutes=_env_int("SYNC_INTERVAL_MINUTES", 0),
+            error_retry_minutes=_env_int("ERROR_RETRY_MINUTES", 15),
             sg_search_url_template=os.getenv(
                 "SG_SEARCH_URL_TEMPLATE",
                 "https://app.thestorygraph.com/browse?search_term={query}",

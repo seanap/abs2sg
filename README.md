@@ -34,8 +34,11 @@ docker compose up --build
 - `DRY_RUN`, `MAX_ACTIONS_PER_RUN`
 - `REQUEST_DELAY_MS`, `REQUEST_JITTER_MS`
 - `SG_CHALLENGE_WAIT_SECONDS` (wait time for Cloudflare verification page)
+- `SG_LOGIN_MAX_ATTEMPTS`, `SG_LOGIN_RETRY_DELAY_SECONDS`
+- `SG_STORAGE_STATE_PATH`, `SG_SAVE_STORAGE_STATE`
 - `MATCH_THRESHOLD`
 - `SYNC_INTERVAL_MINUTES` (`0` = run once, `>0` = loop)
+- `ERROR_RETRY_MINUTES` (retry delay after failed run in loop mode)
 
 ## Local Development
 

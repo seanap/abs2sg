@@ -32,6 +32,10 @@ class StoryGraphConfig:
     request_delay_ms: int
     request_jitter_ms: int
     challenge_wait_seconds: int
+    login_max_attempts: int
+    login_retry_delay_seconds: int
+    storage_state_path: str
+    save_storage_state: bool
     data_dir: str
 
 
@@ -45,7 +49,12 @@ class StoryGraphClient:
     def __enter__(self) -> StoryGraphClient:
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(headless=self._config.headless)
-        context = self._browser.new_context()
+        context_kwargs: dict = {}
+        storage_path = Path(self._config.storage_state_path)
+        if storage_path.exists():
+            context_kwargs["storage_state"] = str(storage_path)
+            LOGGER.info("Loading StoryGraph storage state from %s", storage_path)
+        context = self._browser.new_context(**context_kwargs)
         self._page = context.new_page()
         try:
             self.login()
@@ -67,9 +76,40 @@ class StoryGraphClient:
         return self._page
 
     def login(self) -> None:
+        last_error: Exception | None = None
+        max_attempts = max(self._config.login_max_attempts, 1)
+        for attempt in range(1, max_attempts + 1):
+            try:
+                self._login_once()
+                self._save_storage_state()
+                LOGGER.info("StoryGraph login complete")
+                return
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+                if attempt >= max_attempts:
+                    raise
+                delay = max(self._config.login_retry_delay_seconds, 1)
+                LOGGER.warning(
+                    "StoryGraph login attempt %s/%s failed: %s; retrying in %ss",
+                    attempt,
+                    max_attempts,
+                    exc,
+                    delay,
+                )
+                self.page.wait_for_timeout(delay * 1000)
+        if last_error is not None:
+            raise last_error
+
+    def _login_once(self) -> None:
         login_url = f"{self._config.base_url}{self._config.login_path}"
         self.page.goto(login_url, wait_until="domcontentloaded", timeout=45_000)
         self._dismiss_common_prompts()
+
+        # If persisted session is still valid, login form may never appear.
+        if not self._is_login_page() and not self._is_cloudflare_challenge():
+            self._sleep()
+            return
+
         self._wait_for_login_surface()
         self._fill_login_email()
         self._fill_login_password()
@@ -81,7 +121,6 @@ class StoryGraphClient:
             raise RuntimeError(
                 "StoryGraph login appears to have failed; still on login form"
             )
-        LOGGER.info("StoryGraph login complete")
 
     def search_books(
         self,
@@ -332,6 +371,17 @@ class StoryGraphClient:
             LOGGER.info("Wrote login debug artifacts to %s*", prefix)
         except Exception:  # noqa: BLE001
             LOGGER.warning("Could not write login debug artifacts")
+
+    def _save_storage_state(self) -> None:
+        if not self._config.save_storage_state:
+            return
+        try:
+            path = Path(self._config.storage_state_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self.page.context.storage_state(path=str(path))
+            LOGGER.info("Saved StoryGraph storage state to %s", path)
+        except Exception:  # noqa: BLE001
+            LOGGER.warning("Could not save StoryGraph storage state")
 
     def _absolute_url(self, href: str) -> str:
         if href.startswith("http://") or href.startswith("https://"):

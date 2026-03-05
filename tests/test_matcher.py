@@ -3,7 +3,10 @@ from abs2sg.models import AbsBook, ReadingStatus, StoryGraphCandidate
 
 
 def test_normalize_text() -> None:
-    assert normalize_text("The Hobbit: An Unexpected Journey!") == "the hobbit an unexpected journey"
+    assert (
+        normalize_text("The Hobbit: An Unexpected Journey!")
+        == "the hobbit an unexpected journey"
+    )
 
 
 def test_score_candidate_prefers_title_and_author() -> None:
@@ -44,4 +47,3 @@ def test_pick_best_candidate_with_threshold() -> None:
     assert best is not None
     assert best.url == "u1"
     assert score >= 0.7
-

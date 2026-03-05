@@ -165,12 +165,15 @@ class AbsClient:
         ratio = 0.0
         for key in ("progress", "percentComplete", "percentage"):
             value = source.get(key)
-            if isinstance(value, (int, float)):
+            if isinstance(value, int | float):
                 ratio = max(ratio, float(value))
         current_time = source.get("currentTime") or source.get("position")
         duration = source.get("duration")
-        if isinstance(current_time, (int, float)) and isinstance(duration, (int, float)) and duration > 0:
+        if (
+            isinstance(current_time, int | float)
+            and isinstance(duration, int | float)
+            and duration > 0
+        ):
             ratio = max(ratio, float(current_time) / float(duration))
 
         return {"is_finished": is_finished, "ratio": ratio}
-

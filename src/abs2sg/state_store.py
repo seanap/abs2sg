@@ -40,7 +40,13 @@ class StateStore:
         self._append_jsonl(self._processed_log_path, payload)
         self._processed.add(ProcessedKey(abs_id=abs_id, shelf=shelf).serial)
 
-    def append_error(self, abs_id: str, title: str, reason: str, details: dict | None = None) -> None:
+    def append_error(
+        self,
+        abs_id: str,
+        title: str,
+        reason: str,
+        details: dict | None = None,
+    ) -> None:
         payload = {
             "timestamp": _utc_now(),
             "abs_id": abs_id,
@@ -74,4 +80,3 @@ class StateStore:
 
 def _utc_now() -> str:
     return datetime.now(tz=UTC).isoformat()
-

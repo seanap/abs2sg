@@ -33,7 +33,7 @@ class StoryGraphClient:
         self._browser: Browser | None = None
         self._page: Page | None = None
 
-    def __enter__(self) -> "StoryGraphClient":
+    def __enter__(self) -> StoryGraphClient:
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(headless=self._config.headless)
         context = self._browser.new_context()
@@ -85,7 +85,12 @@ class StoryGraphClient:
         self._sleep()
         LOGGER.info("StoryGraph login complete")
 
-    def search_books(self, title: str, authors: list[str], limit: int = 8) -> list[StoryGraphCandidate]:
+    def search_books(
+        self,
+        title: str,
+        authors: list[str],
+        limit: int = 8,
+    ) -> list[StoryGraphCandidate]:
         query = f"{title} {' '.join(authors)}".strip()
         url = self._config.search_url_template.format(query=quote_plus(query))
         self.page.goto(url, wait_until="domcontentloaded", timeout=45_000)

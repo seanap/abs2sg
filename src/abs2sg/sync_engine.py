@@ -30,8 +30,16 @@ class RunStats:
 class SyncEngine:
     def __init__(self, config: Config) -> None:
         self._config = config
-        self._abs_client = AbsClient(config.abs_url, config.abs_token, verify_tls=config.abs_verify_tls)
-        self._state = StateStore(config.data_dir, config.processed_log_path, config.errors_log_path)
+        self._abs_client = AbsClient(
+            config.abs_url,
+            config.abs_token,
+            verify_tls=config.abs_verify_tls,
+        )
+        self._state = StateStore(
+            config.data_dir,
+            config.processed_log_path,
+            config.errors_log_path,
+        )
 
     def run_once(self) -> RunStats:
         started_at = datetime.now(tz=UTC)
@@ -91,11 +99,20 @@ class SyncEngine:
             actions.append(PlannedAction(book=book, target_shelf=shelf))
         return actions
 
-    def _execute_action(self, storygraph: StoryGraphClient, action: PlannedAction, stats: RunStats) -> None:
+    def _execute_action(
+        self,
+        storygraph: StoryGraphClient,
+        action: PlannedAction,
+        stats: RunStats,
+    ) -> None:
         book = action.book
         try:
             candidates = storygraph.search_books(book.title, book.authors)
-            best, score = pick_best_candidate(book, candidates, threshold=self._config.match_threshold)
+            best, score = pick_best_candidate(
+                book,
+                candidates,
+                threshold=self._config.match_threshold,
+            )
             if best is None:
                 stats.failed += 1
                 self._state.append_error(
@@ -161,4 +178,3 @@ class SyncEngine:
         folder.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")
         return folder / f"{timestamp}_{abs_id}.png"
-

@@ -61,7 +61,7 @@ class Config:
         return self.data_dir / "run_summary.json"
 
     @staticmethod
-    def from_env() -> "Config":
+    def from_env() -> Config:
         abs_url = os.getenv("ABS_URL", "").rstrip("/")
         abs_token = os.getenv("ABS_TOKEN", "")
         sg_email = os.getenv("SG_EMAIL", "")
@@ -106,4 +106,3 @@ class Config:
                 "button:has-text('Read'), button:has-text('Mark as read'), a:has-text('Read')",
             ),
         )
-

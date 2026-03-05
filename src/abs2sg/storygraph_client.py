@@ -196,6 +196,11 @@ class StoryGraphClient:
         self.page.goto(storygraph_url, wait_until="domcontentloaded", timeout=45_000)
         self.page.wait_for_load_state("networkidle", timeout=45_000)
         self._sleep()
+        if self._is_low_quality_book_page():
+            raise RuntimeError(
+                "Refusing to set shelf for low-quality StoryGraph entry "
+                "(missing page info / user-added)"
+            )
 
         if target_shelf == "to-read":
             if self._click_first(
@@ -599,6 +604,25 @@ class StoryGraphClient:
             if token.strip()
         ]
         return authors
+
+    def _is_low_quality_book_page(self) -> bool:
+        markers = (
+            "missing page info",
+            "user-added",
+            "user added",
+        )
+        for marker in markers:
+            try:
+                if self.page.locator(f"text={marker}").count() > 0:
+                    return True
+            except Exception:  # noqa: BLE001
+                continue
+
+        try:
+            html = self.page.content().lower()
+            return any(marker in html for marker in markers)
+        except Exception:  # noqa: BLE001
+            return False
 
     def _sleep(self) -> None:
         base = max(self._config.request_delay_ms, 0)

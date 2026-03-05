@@ -73,7 +73,7 @@ The `docker-publish.yml` workflow builds and pushes `${DOCKERHUB_USERNAME}/abs2s
 - StoryGraph UI selectors can change; override selectors via env vars if needed.
 - StoryGraph can present Cloudflare bot checks. The app will wait `SG_CHALLENGE_WAIT_SECONDS` and then log explicit challenge errors plus debug artifacts.
 - Matching is heuristic (title + author similarity). Ambiguous books are logged for review.
-- Low-quality StoryGraph entries marked as `user-added` / `missing page info` are skipped to avoid polluting shelves with incomplete editions.
+- Low-quality StoryGraph entries marked as `user-added` / `missing page info` are skipped during matching and blocked again at update time as a safety net.
 - `in_progress` ABS books are intentionally skipped in v1.
 
 ## Session Import (Cloudflare Workaround)

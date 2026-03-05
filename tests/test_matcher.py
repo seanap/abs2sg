@@ -1,4 +1,9 @@
-from abs2sg.matcher import normalize_text, pick_best_candidate, score_candidate
+from abs2sg.matcher import (
+    is_low_quality_candidate,
+    normalize_text,
+    pick_best_candidate,
+    score_candidate,
+)
 from abs2sg.models import AbsBook, ReadingStatus, StoryGraphCandidate
 
 
@@ -47,3 +52,40 @@ def test_pick_best_candidate_with_threshold() -> None:
     assert best is not None
     assert best.url == "u1"
     assert score >= 0.7
+
+
+def test_low_quality_candidate_detection() -> None:
+    low_quality = StoryGraphCandidate(
+        url="u1",
+        title="Any Book",
+        authors=["Any Author"],
+        snippet="Any Book\nAny Author\nmissing page info • user-added",
+    )
+    assert is_low_quality_candidate(low_quality)
+
+
+def test_pick_best_candidate_skips_low_quality_results() -> None:
+    book = AbsBook(
+        abs_id="3",
+        title="The Hobbit",
+        authors=["J.R.R. Tolkien"],
+        status=ReadingStatus.UNREAD,
+        raw={},
+    )
+    candidates = [
+        StoryGraphCandidate(
+            url="bad",
+            title="The Hobbit",
+            authors=["J.R.R. Tolkien"],
+            snippet="The Hobbit\nJ.R.R. Tolkien\nmissing page info • user-added",
+        ),
+        StoryGraphCandidate(
+            url="good",
+            title="The Hobbit",
+            authors=["J.R.R. Tolkien"],
+            snippet="The Hobbit\nJ.R.R. Tolkien\n320 pages",
+        ),
+    ]
+    best, _ = pick_best_candidate(book, candidates, threshold=0.7)
+    assert best is not None
+    assert best.url == "good"

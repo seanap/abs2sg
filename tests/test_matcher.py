@@ -1,6 +1,6 @@
 from abs2sg.matcher import (
-    canonical_title,
     candidate_quality_score,
+    canonical_title,
     is_low_quality_candidate,
     normalize_text,
     pick_best_candidate,

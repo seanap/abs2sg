@@ -167,9 +167,10 @@ class StoryGraphClient:
                 href = anchor.get_attribute("href")
                 if not href:
                     continue
-                if not self._is_valid_book_href(href):
+                normalized_href = self._normalize_book_href(href)
+                if not self._is_valid_book_href(normalized_href):
                     continue
-                full_url = self._absolute_url(href)
+                full_url = self._absolute_url(normalized_href)
                 if not self._is_valid_book_href(full_url):
                     continue
                 if full_url in seen:
@@ -178,7 +179,7 @@ class StoryGraphClient:
                 text = self._extract_search_result_text(anchor)
                 if not text:
                     continue
-                candidate_title = text.split("\n")[0].strip()
+                candidate_title = self._extract_candidate_title(text)
                 snippet = text
                 parsed_authors = self._extract_authors_from_snippet(snippet)
                 candidates.append(
@@ -206,11 +207,18 @@ class StoryGraphClient:
             "/books/browse",
             "/books/add",
             "/books/import",
-            "/editions",
         )
         if any(path in token for path in blocked):
             return False
         return True
+
+    def _normalize_book_href(self, href: str) -> str:
+        token = href.strip()
+        if not token:
+            return token
+        token = token.split("?", 1)[0].split("#", 1)[0]
+        token = re.sub(r"/editions/?$", "", token, flags=re.IGNORECASE)
+        return token.rstrip("/")
 
     def set_shelf(self, storygraph_url: str, target_shelf: str) -> None:
         self.page.goto(storygraph_url, wait_until="domcontentloaded", timeout=45_000)
@@ -624,6 +632,37 @@ class StoryGraphClient:
             if token.strip()
         ]
         return authors
+
+    def _extract_candidate_title(self, snippet: str) -> str:
+        lines = [line.strip() for line in snippet.splitlines() if line.strip()]
+        if not lines:
+            return ""
+        for line in lines:
+            if not self._looks_like_metadata_line(line):
+                return line
+        return lines[0]
+
+    def _looks_like_metadata_line(self, line: str) -> bool:
+        token = line.strip().lower()
+        if not token:
+            return True
+        metadata_terms = (
+            "missing page info",
+            "missing duration info",
+            "pages",
+            "edition",
+            "audio",
+            "hardcover",
+            "paperback",
+            "digital",
+        )
+        if any(term in token for term in metadata_terms):
+            return True
+        if "•" in token and re.search(r"\d", token):
+            return True
+        if re.match(r"^\d+\s+(pages?|editions?)\b", token):
+            return True
+        return False
 
     def _extract_search_result_text(self, anchor) -> str:
         fallback = ""

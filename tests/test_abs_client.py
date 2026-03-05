@@ -38,3 +38,18 @@ def test_extract_status_uses_item_detail_fallback() -> None:
     client._item_progress_cache = {"book-2": {"mediaProgress": {"progress": 0.55}}}  # noqa: SLF001
     status = client._extract_status({"id": "book-2", "media": {}}, "book-2")  # noqa: SLF001
     assert status is ReadingStatus.IN_PROGRESS
+
+
+def test_parse_progress_ignores_empty_dict() -> None:
+    client = make_client()
+    parsed = client._parse_progress({})  # noqa: SLF001
+    assert parsed is None
+
+
+def test_extract_status_skips_empty_progress_and_uses_fallback() -> None:
+    client = make_client()
+    client._item_progress_cache = {  # noqa: SLF001
+        "book-3": {"mediaProgress": {"isFinished": True}}
+    }
+    status = client._extract_status({"id": "book-3", "mediaProgress": {}}, "book-3")  # noqa: SLF001
+    assert status is ReadingStatus.FINISHED

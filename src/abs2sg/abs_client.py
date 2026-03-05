@@ -20,11 +20,13 @@ class AbsClient:
         self._current_user_id: str | None = None
         self._user_progress_by_item: dict[str, Any] = {}
         self._item_progress_cache: dict[str, dict[str, Any] | None] = {}
+        self._item_raw_progress_cache: dict[str, dict[str, Any] | None] = {}
 
     def fetch_books(self, library_id: str | None) -> list[AbsBook]:
         self._current_user_id = None
         self._user_progress_by_item = {}
         self._item_progress_cache = {}
+        self._item_raw_progress_cache = {}
         self._load_user_context()
 
         payload = self._fetch_library_items(library_id)
@@ -180,6 +182,12 @@ class AbsClient:
                 )
                 if detail_progress is not None:
                     return detail_progress
+
+            progress_payload = self._fetch_item_raw_progress(abs_id)
+            if progress_payload is not None:
+                parsed_raw_progress = self._parse_progress(progress_payload)
+                if parsed_raw_progress is not None:
+                    return parsed_raw_progress
         return None
 
     def _parse_progress(self, source: Any) -> dict[str, Any] | None:
@@ -188,6 +196,8 @@ class AbsClient:
         if isinstance(source, list):
             return self._parse_progress_list(source)
         if not isinstance(source, dict):
+            return None
+        if not self._has_progress_signal(source):
             return None
 
         is_finished = bool(
@@ -230,6 +240,27 @@ class AbsClient:
 
         ratio = max(0.0, min(1.0, ratio))
         return {"is_finished": is_finished, "ratio": ratio}
+
+    def _has_progress_signal(self, source: dict[str, Any]) -> bool:
+        signal_keys = (
+            "isFinished",
+            "finished",
+            "isRead",
+            "read",
+            "progress",
+            "progressPct",
+            "percentComplete",
+            "percentage",
+            "completionPercentage",
+            "progressPercent",
+            "currentTime",
+            "position",
+            "duration",
+        )
+        for key in signal_keys:
+            if key in source and source.get(key) is not None:
+                return True
+        return False
 
     def _parse_progress_list(self, source: list[Any]) -> dict[str, Any] | None:
         parsed_entries: list[tuple[int, float, dict[str, Any]]] = []
@@ -370,6 +401,36 @@ class AbsClient:
                 continue
 
         self._item_progress_cache[abs_id] = None
+        return None
+
+    def _fetch_item_raw_progress(self, abs_id: str) -> dict[str, Any] | None:
+        if abs_id in self._item_raw_progress_cache:
+            return self._item_raw_progress_cache[abs_id]
+
+        candidates = [
+            f"/api/me/progress/{abs_id}",
+            f"/api/items/{abs_id}/progress",
+            f"/api/items/{abs_id}/user-progress",
+            f"/api/items/{abs_id}/media-progress",
+        ]
+        for path in candidates:
+            try:
+                response = self._session.get(
+                    f"{self._base_url}{path}",
+                    timeout=30,
+                    verify=self._verify_tls,
+                )
+                if response.status_code == 404:
+                    continue
+                response.raise_for_status()
+                payload = response.json()
+                if isinstance(payload, dict):
+                    self._item_raw_progress_cache[abs_id] = payload
+                    return payload
+            except Exception:  # noqa: BLE001
+                continue
+
+        self._item_raw_progress_cache[abs_id] = None
         return None
 
     def _extract_item_id(self, payload: dict[str, Any]) -> str:

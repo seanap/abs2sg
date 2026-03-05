@@ -28,7 +28,7 @@ Candidate quality is also estimated from search-result metadata:
 - If chosen candidate quality is below this value, the match is rejected.
 
 ## Manual Review Workflow
-1. Open `errors.log`.
+1. Open `manual_review.log` (and `errors.log` for stack-level failures).
 2. Find `no_confident_match` rows.
 3. Check `top_ranked` scores in `details` to see rejected/considered candidates.
 4. Manually verify StoryGraph book URL.

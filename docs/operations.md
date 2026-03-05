@@ -22,7 +22,8 @@ Then run the same compose command; the container loops with sleep intervals.
 
 ## Logs and Artifacts
 - `processed_activities.log`: JSONL idempotency ledger
-- `errors.log`: JSONL error and manual-review queue
+- `errors.log`: JSONL runtime and matching errors
+- `manual_review.log`: JSONL books that need human intervention (sync keeps moving)
 - `run_summary.json`: last run metrics
 - `screenshots/*.png`: browser capture on failure
 - `debug/*.(png|html)`: login debug artifacts when auth selectors fail

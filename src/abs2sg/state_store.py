@@ -17,13 +17,21 @@ class ProcessedKey:
 
 
 class StateStore:
-    def __init__(self, data_dir: Path, processed_log_path: Path, errors_log_path: Path) -> None:
+    def __init__(
+        self,
+        data_dir: Path,
+        processed_log_path: Path,
+        errors_log_path: Path,
+        manual_review_log_path: Path,
+    ) -> None:
         self._data_dir = data_dir
         self._processed_log_path = processed_log_path
         self._errors_log_path = errors_log_path
+        self._manual_review_log_path = manual_review_log_path
         self._data_dir.mkdir(parents=True, exist_ok=True)
         self._processed_log_path.touch(exist_ok=True)
         self._errors_log_path.touch(exist_ok=True)
+        self._manual_review_log_path.touch(exist_ok=True)
         self._processed = self._load_processed()
 
     def is_processed(self, abs_id: str, shelf: str) -> bool:
@@ -55,6 +63,24 @@ class StateStore:
             "details": details or {},
         }
         self._append_jsonl(self._errors_log_path, payload)
+
+    def append_manual_review(
+        self,
+        abs_id: str,
+        title: str,
+        target_shelf: str,
+        reason: str,
+        details: dict | None = None,
+    ) -> None:
+        payload = {
+            "timestamp": _utc_now(),
+            "abs_id": abs_id,
+            "title": title,
+            "target_shelf": target_shelf,
+            "reason": reason,
+            "details": details or {},
+        }
+        self._append_jsonl(self._manual_review_log_path, payload)
 
     def _load_processed(self) -> set[str]:
         processed: set[str] = set()

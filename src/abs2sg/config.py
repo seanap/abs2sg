@@ -71,6 +71,10 @@ class Config:
         return self.data_dir / "errors.log"
 
     @property
+    def manual_review_log_path(self) -> Path:
+        return self.data_dir / "manual_review.log"
+
+    @property
     def run_summary_path(self) -> Path:
         return self.data_dir / "run_summary.json"
 

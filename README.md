@@ -23,6 +23,7 @@ docker compose up --build
 4. Review outputs in `./data`:
 - `processed_activities.log`
 - `errors.log`
+- `manual_review.log`
 - `run_summary.json`
 - `screenshots/` for UI failure captures
 - `debug/` for login-page screenshot + HTML dumps when auth fails
@@ -75,6 +76,7 @@ The `docker-publish.yml` workflow builds and pushes `${DOCKERHUB_USERNAME}/abs2s
 - Matching is heuristic (title + author similarity). Ambiguous books are logged for review.
 - Low-quality StoryGraph entries marked as `user-added` / `missing page info` are skipped during matching and blocked again at update time as a safety net.
 - When multiple candidates are close in similarity, richer metadata entries (pages/duration/editions) are preferred over sparse editions.
+- Titles that cannot be safely matched/updated are written to `manual_review.log`, and sync continues with the next book.
 - `in_progress` ABS books are intentionally skipped in v1.
 
 ## Session Import (Cloudflare Workaround)

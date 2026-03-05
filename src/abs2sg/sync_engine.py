@@ -24,6 +24,7 @@ class RunStats:
     skipped_in_progress: int = 0
     updated: int = 0
     failed: int = 0
+    manual_review: int = 0
     dry_run: bool = False
 
 
@@ -39,6 +40,7 @@ class SyncEngine:
             config.data_dir,
             config.processed_log_path,
             config.errors_log_path,
+            config.manual_review_log_path,
         )
 
     def run_once(self) -> RunStats:
@@ -86,6 +88,7 @@ class SyncEngine:
             return stats
 
         with StoryGraphClient(sg_config) as storygraph:
+            total_actions = min(len(actions), self._config.max_actions_per_run)
             for index, action in enumerate(actions, start=1):
                 if index > self._config.max_actions_per_run:
                     LOGGER.warning(
@@ -93,6 +96,14 @@ class SyncEngine:
                         self._config.max_actions_per_run,
                     )
                     break
+                LOGGER.info(
+                    "Syncing %s/%s: %s (%s) -> %s",
+                    index,
+                    total_actions,
+                    action.book.title,
+                    action.book.abs_id,
+                    action.target_shelf,
+                )
                 self._execute_action(storygraph, action, stats)
 
         self._write_summary(stats, started_at)
@@ -153,6 +164,23 @@ class SyncEngine:
                         "top_ranked": top_ranked,
                     },
                 )
+                self._state.append_manual_review(
+                    abs_id=book.abs_id,
+                    title=book.title,
+                    target_shelf=action.target_shelf,
+                    reason="no_confident_match",
+                    details={
+                        "score": score,
+                        "candidate_count": len(candidates),
+                        "top_ranked": top_ranked,
+                    },
+                )
+                stats.manual_review += 1
+                LOGGER.warning(
+                    "Manual review required for %s (%s): no confident match",
+                    book.title,
+                    book.abs_id,
+                )
                 return
 
             attempts = self._build_candidate_attempts(ranked, best, score)
@@ -189,9 +217,30 @@ class SyncEngine:
                         continue
                     raise
 
-            raise RuntimeError(
-                f"All candidate attempts failed: {attempted_errors}"
+            stats.failed += 1
+            stats.manual_review += 1
+            self._state.append_error(
+                abs_id=book.abs_id,
+                title=book.title,
+                reason="all_candidate_attempts_failed",
+                details={
+                    "target_shelf": action.target_shelf,
+                    "attempted_errors": attempted_errors,
+                },
             )
+            self._state.append_manual_review(
+                abs_id=book.abs_id,
+                title=book.title,
+                target_shelf=action.target_shelf,
+                reason="all_candidate_attempts_failed",
+                details={"attempted_errors": attempted_errors},
+            )
+            LOGGER.warning(
+                "Manual review required for %s (%s): all candidate attempts failed",
+                book.title,
+                book.abs_id,
+            )
+            return
         except Exception as exc:  # noqa: BLE001
             stats.failed += 1
             screenshot_path = self._screenshot_path(book.abs_id)

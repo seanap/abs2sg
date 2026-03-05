@@ -52,7 +52,11 @@ def pick_best_candidate(
     if not candidates:
         return None, 0.0
 
-    high_quality = [candidate for candidate in candidates if not is_low_quality_candidate(candidate)]
+    high_quality = [
+        candidate
+        for candidate in candidates
+        if not is_low_quality_candidate(candidate)
+    ]
     if not high_quality:
         best_low_quality = max(candidates, key=lambda candidate: score_candidate(book, candidate))
         return None, score_candidate(book, best_low_quality)

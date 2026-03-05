@@ -23,11 +23,12 @@ def similarity(left: str, right: str) -> float:
 
 
 def canonical_title(value: str) -> str:
-    text = normalize_text(value)
+    raw = value.lower().strip()
+    raw = re.split(r"\s*[:\-]\s*", raw, maxsplit=1)[0]
+    text = normalize_text(raw)
     text = re.sub(r"\b(unabridged|abridged)\b", " ", text)
     text = re.sub(r"\b(book|volume|vol|part)\s*\d+\b", " ", text)
     text = re.sub(r"#\s*\d+(\.\d+)?", " ", text)
-    text = re.split(r"\s*[:\-]\s*", text, maxsplit=1)[0]
     text = re.sub(r"\s+", " ", text).strip()
     return text
 

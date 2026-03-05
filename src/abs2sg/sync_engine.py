@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .abs_client import AbsClient
 from .config import Config
-from .matcher import pick_best_candidate, rank_candidates
+from .matcher import RankedCandidate, pick_best_candidate, rank_candidates
 from .models import AbsBook, PlannedAction, ReadingStatus
 from .state_store import StateStore
 from .storygraph_client import StoryGraphClient, StoryGraphConfig
@@ -120,6 +120,7 @@ class SyncEngine:
         book = action.book
         try:
             candidates = storygraph.search_books(book.title, book.authors)
+            ranked = rank_candidates(book, candidates)
             best, score = pick_best_candidate(
                 book,
                 candidates,
@@ -128,7 +129,6 @@ class SyncEngine:
                 min_quality=self._config.match_min_quality,
             )
             if best is None:
-                ranked = rank_candidates(book, candidates)
                 top_ranked = [
                     {
                         "url": item.candidate.url,
@@ -155,15 +155,42 @@ class SyncEngine:
                 )
                 return
 
-            storygraph.set_shelf(best.url, action.target_shelf)
-            self._state.append_processed(book.abs_id, action.target_shelf, best.url, score)
-            stats.updated += 1
-            LOGGER.info(
-                "Updated %s (%s) -> %s (%s)",
-                book.title,
-                book.abs_id,
-                action.target_shelf,
-                best.url,
+            attempts = self._build_candidate_attempts(ranked, best, score)
+            attempted_errors: list[dict[str, str]] = []
+            for candidate in attempts:
+                try:
+                    storygraph.set_shelf(candidate.url, action.target_shelf)
+                    self._state.append_processed(
+                        book.abs_id,
+                        action.target_shelf,
+                        candidate.url,
+                        score,
+                    )
+                    stats.updated += 1
+                    LOGGER.info(
+                        "Updated %s (%s) -> %s (%s)",
+                        book.title,
+                        book.abs_id,
+                        action.target_shelf,
+                        candidate.url,
+                    )
+                    return
+                except RuntimeError as candidate_exc:
+                    message = str(candidate_exc)
+                    attempted_errors.append({"url": candidate.url, "error": message})
+                    if self._is_retryable_candidate_error(message):
+                        LOGGER.warning(
+                            "Candidate rejected for %s (%s): %s [%s]; trying next",
+                            book.title,
+                            book.abs_id,
+                            candidate.url,
+                            message,
+                        )
+                        continue
+                    raise
+
+            raise RuntimeError(
+                f"All candidate attempts failed: {attempted_errors}"
             )
         except Exception as exc:  # noqa: BLE001
             stats.failed += 1
@@ -179,6 +206,44 @@ class SyncEngine:
                 details={"error": str(exc), "target_shelf": action.target_shelf},
             )
             LOGGER.exception("Failed syncing %s (%s)", book.title, book.abs_id)
+
+    def _build_candidate_attempts(
+        self,
+        ranked: list[RankedCandidate],
+        best_candidate,
+        best_score: float,
+    ) -> list:
+        if not ranked:
+            return []
+
+        tie_delta = max(self._config.match_tie_delta, 0.0)
+        floor = max(self._config.match_threshold, best_score - tie_delta)
+        candidates = [
+            item
+            for item in ranked
+            if item.similarity >= floor and item.quality >= self._config.match_min_quality
+        ]
+        if not candidates:
+            return [best_candidate]
+
+        candidates.sort(key=lambda item: (item.quality, item.similarity), reverse=True)
+        ordered = [best_candidate]
+        for item in candidates:
+            candidate = item.candidate
+            if candidate.url == best_candidate.url:
+                continue
+            ordered.append(candidate)
+        return ordered[:5]
+
+    def _is_retryable_candidate_error(self, message: str) -> bool:
+        normalized = message.lower()
+        if "low-quality storygraph entry" in normalized:
+            return True
+        if "could not set to-read shelf" in normalized:
+            return True
+        if "could not set recently-read shelf" in normalized:
+            return True
+        return False
 
     def _target_shelf(self, status: ReadingStatus) -> str | None:
         if status is ReadingStatus.UNREAD:

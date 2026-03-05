@@ -1,0 +1,10 @@
+services:
+  sync:
+    build: .
+    image: ${DOCKER_IMAGE:-abs2sg:dev}
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    restart: "no"
+
